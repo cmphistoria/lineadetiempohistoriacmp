@@ -494,12 +494,7 @@ function updateCount(total, filled) {
 //  ACTIONS
 // ═══════════════════════════════════════════════
 async function addEntry() {
-  const existing = Object.values(entries).find(e => e.authorKey === authorKey);
-  if (existing) {
-    showToast('Ya tenés un bloque. Editá el tuyo.');
-    document.querySelector(`[data-eid="${existing.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});
-    return;
-  }
+  // Each student can add as many blocks as they want
   const btn = document.getElementById('addBtn');
   btn.disabled = true;
   const e = { id: uid(), author, authorKey, year: '', desc: '', imgB64: '', order: Date.now() };
@@ -524,11 +519,15 @@ async function saveEntry(id) {
   const imgB64 = img && img.classList.contains('show') ? img.src : '';
 
   const update = { year, desc, imgB64 };
+  // Update local cache immediately so re-render has correct data
+  if (entries[id]) Object.assign(entries[id], update);
   if (demoMode) {
-    if (entries[id]) Object.assign(entries[id], update);
     saveDemo(); renderAll();
   } else {
-    try { await fbPatch(`entries/${id}`, update); } catch(err) { showToast('Error al guardar'); }
+    try {
+      await fbPatch(`entries/${id}`, update);
+      suppressRender = false;
+    } catch(err) { showToast('Error al guardar'); }
   }
   if (btn) { btn.disabled=false; btn.className='s-btn ok'; btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Guardado'; }
   showToast('¡Guardado! Tus compañeros ya pueden verlo');
@@ -578,6 +577,10 @@ async function saveImgSilent(id, imgB64) {
 }
 
 function dirty(id) {
+  // Suppress re-render while the user is actively typing
+  suppressRender = true;
+  clearTimeout(window._suppressTimer);
+  window._suppressTimer = setTimeout(() => { suppressRender = false; }, 5000);
   const btn = document.getElementById(`sb_${id}`);
   if (btn) { btn.disabled=false; btn.className='s-btn'; btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Guardar'; }
 }
