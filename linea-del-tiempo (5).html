@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Línea del Tiempo Histórica</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0D0D0F;--card:#1A1A1E;--card2:#1F1F24;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --gold:#C9A84C;--gold2:#E8C97A;--gold-dim:rgba(201,168,76,0.12);
+  --text:#F0EDE8;--muted:rgba(240,237,232,0.45);--muted2:rgba(240,237,232,0.22);
+  --green:#4CAF50;--red:#E55;
+}
+html,body{height:100%;font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── NAME SCREEN ── */
+#nameScreen{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:1.5rem;background:var(--bg)}
+.ns-glow{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,0.06) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-55%);pointer-events:none}
+.ns-grid{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(255,255,255,0.012) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,0.012) 60px);pointer-events:none}
+.ns-box{position:relative;z-index:1;max-width:430px;width:100%;background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:3rem 2.5rem;text-align:center}
+.ns-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.ns-sym{font-family:'Cormorant Garamond',serif;font-size:2rem;color:var(--gold);opacity:.6;letter-spacing:.3em;margin-bottom:1.2rem}
+.ns-box h2{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:1.8rem;margin-bottom:.4rem}
+.ns-box p{color:var(--muted);font-size:.85rem;font-weight:300;line-height:1.7;margin-bottom:2rem}
+.ns-lbl{text-align:left;font-size:.65rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:.45rem;font-weight:500}
+.ns-in{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:.95rem;font-weight:300;padding:.8rem 1rem;border-radius:3px;outline:none;transition:border-color .2s;margin-bottom:1rem}
+.ns-in:focus{border-color:var(--gold)}
+.ns-in::placeholder{color:var(--muted2)}
+.ns-in.err{border-color:var(--red);animation:shake .35s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.ns-btn{width:100%;background:var(--gold);color:#0D0D0F;border:none;padding:.85rem;font-family:'Outfit',sans-serif;font-size:.8rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:background .2s}
+.ns-btn:hover{background:var(--gold2)}
+.ns-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── APP ── */
+#app{display:none}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(13,13,15,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:.65rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+.tb-brand{font-family:'Cormorant Garamond',serif;font-size:.95rem;color:var(--gold);letter-spacing:.08em;white-space:nowrap}
+.tb-mid{display:flex;align-items:center;gap:.5rem;flex:1;justify-content:center}
+.tb-av{width:26px;height:26px;border-radius:50%;background:var(--gold-dim);border:1px solid rgba(201,168,76,.35);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:600;color:var(--gold);flex-shrink:0}
+.tb-nm{font-size:.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.tb-right{display:flex;align-items:center;gap:.5rem}
+.live-pill{display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--green);padding:2px 8px;border:1px solid rgba(76,175,80,.25);border-radius:100px;white-space:nowrap}
+.live-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.offline-pill{display:flex;align-items:center;gap:4px;font-size:.65rem;color:var(--red);padding:2px 8px;border:1px solid rgba(238,85,85,.25);border-radius:100px}
+.tb-change{background:transparent;border:1px solid var(--border2);color:var(--muted);padding:.28rem .7rem;font-size:.68rem;letter-spacing:.06em;border-radius:3px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s;white-space:nowrap}
+.tb-change:hover{border-color:var(--gold);color:var(--gold)}
+
+/* HEADER */
+.hdr{position:relative;text-align:center;padding:4rem 1.5rem 3rem;overflow:hidden}
+.hdr-glow{position:absolute;width:500px;height:300px;top:-60px;left:50%;transform:translateX(-50%);background:radial-gradient(ellipse,rgba(201,168,76,.06) 0%,transparent 70%);pointer-events:none}
+.hdr-sub{display:flex;align-items:center;justify-content:center;gap:.8rem;margin-bottom:1.2rem}
+.hdr-sub span{font-size:.65rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:500}
+.hdr-sub::before,.hdr-sub::after{content:'';height:1px;width:45px}
+.hdr-sub::before{background:linear-gradient(90deg,transparent,var(--gold))}
+.hdr-sub::after{background:linear-gradient(90deg,var(--gold),transparent)}
+.hdr h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(2.4rem,5.5vw,3.8rem);line-height:1.1;margin-bottom:.2rem}
+.hdr h1 em{font-style:italic;color:var(--gold)}
+.hdr-desc{color:var(--muted);font-size:.85rem;font-weight:300;margin-top:1rem}
+
+.count-bar{text-align:center;padding:.4rem;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+.count-bar strong{color:var(--gold);font-weight:500}
+
+/* ── TIMELINE ── */
+.tl-wrap{max-width:860px;margin:0 auto;padding:1.5rem 1.5rem 4rem;position:relative}
+.tl-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;transform:translateX(-50%);background:linear-gradient(180deg,transparent 0%,rgba(201,168,76,.2) 4%,rgba(201,168,76,.2) 96%,transparent 100%)}
+
+/* LOADING */
+.tl-load{text-align:center;padding:3rem 0;color:var(--muted2);font-size:.85rem}
+.spinner{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tl-empty{text-align:center;padding:3rem 0;color:var(--muted2);font-size:.85rem}
+.tl-empty big{display:block;font-size:2rem;opacity:.2;margin-bottom:.5rem}
+
+/* ENTRY */
+.entry{display:grid;grid-template-columns:1fr 48px 1fr;margin-bottom:2.5rem;align-items:start;animation:fadeUp .45s cubic-bezier(.22,1,.36,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.e-ctr{display:flex;flex-direction:column;align-items:center;padding-top:1.4rem;gap:4px;z-index:2;position:relative}
+.e-dot{width:12px;height:12px;border-radius:50%;background:var(--bg);border:1.5px solid rgba(201,168,76,.3);transition:all .3s}
+.entry.filled .e-dot{background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px rgba(201,168,76,.4)}
+.e-num{font-size:.58rem;letter-spacing:.1em;color:var(--muted2);font-weight:500;text-transform:uppercase}
+.entry.filled .e-num{color:var(--gold)}
+.entry:nth-child(odd) .e-cw{grid-column:1;padding-right:1.25rem}
+.entry:nth-child(even) .e-cw{grid-column:3;padding-left:1.25rem}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:4px;overflow:hidden;transition:border-color .3s,box-shadow .3s;position:relative}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,0),transparent);transition:background .4s;pointer-events:none}
+.entry.filled .card{border-color:rgba(201,168,76,.18);box-shadow:0 0 24px rgba(201,168,76,.04)}
+.entry.filled .card::after{background:linear-gradient(90deg,transparent,rgba(201,168,76,.28),transparent)}
+
+/* IMAGE ZONE */
+.iz{position:relative;height:180px;background:var(--card2);display:flex;align-items:center;justify-content:center;overflow:hidden;border-bottom:1px solid var(--border)}
+.iz.can-edit{cursor:pointer}
+.iz img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;transition:transform .4s}
+.iz.can-edit:hover img{transform:scale(1.025)}
+.iz img.show{display:block}
+.iz input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:3;width:100%;height:100%}
+.iz-ph{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--muted2);pointer-events:none;font-size:.78rem;letter-spacing:.03em}
+.iz-ph svg{opacity:.5}
+.iz-ov{position:absolute;inset:0;background:rgba(13,13,15,.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;opacity:0;transition:opacity .2s;z-index:2;pointer-events:none;color:#fff;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}
+.iz.can-edit:hover .iz-ov{opacity:1}
+
+/* BODY */
+.cb{padding:1rem 1.2rem 1.1rem}
+.cb-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)}
+.a-pill{display:flex;align-items:center;gap:6px}
+.a-av{width:20px;height:20px;border-radius:50%;background:var(--gold-dim);border:1px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:600;color:var(--gold);flex-shrink:0}
+.a-nm{font-size:.72rem;color:var(--muted)}
+.a-nm strong{color:rgba(201,168,76,.8);font-weight:500}
+.badge-mine{font-size:.58rem;padding:2px 7px;background:rgba(76,175,80,.12);color:#4CAF50;border:1px solid rgba(76,175,80,.25);border-radius:100px;white-space:nowrap}
+.badge-lock{font-size:.58rem;padding:2px 7px;background:rgba(255,255,255,.05);color:var(--muted2);border:1px solid var(--border);border-radius:100px;white-space:nowrap}
+.yr-in{border:none;background:transparent;color:var(--muted2);font-family:'Cormorant Garamond',serif;font-size:.9rem;font-style:italic;text-align:right;width:80px;outline:none;transition:color .2s}
+.yr-in:focus{color:var(--gold)}
+.yr-in::placeholder{color:var(--muted2);opacity:.5}
+.yr-in:disabled{cursor:default}
+.desc-ta{width:100%;background:transparent;border:none;color:var(--text);font-family:'Outfit',sans-serif;font-size:.86rem;font-weight:300;line-height:1.75;resize:none;outline:none;min-height:72px}
+.desc-ta::placeholder{color:var(--muted2);font-style:italic;font-size:.8rem}
+.desc-ta:disabled{cursor:default}
+.save-row{display:flex;justify-content:flex-end;gap:6px;margin-top:.6rem;padding-top:.6rem;border-top:1px solid var(--border)}
+.s-btn{background:transparent;border:1px solid rgba(201,168,76,.3);color:var(--gold);padding:.32rem .9rem;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;border-radius:3px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s;display:flex;align-items:center;gap:5px}
+.s-btn:hover{background:var(--gold-dim);border-color:var(--gold)}
+.s-btn:disabled{opacity:.4;cursor:not-allowed}
+.s-btn.ok{color:var(--green);border-color:rgba(76,175,80,.3)}
+.d-btn{background:transparent;border:1px solid var(--border2);color:var(--muted2);padding:.32rem .7rem;font-size:.7rem;border-radius:3px;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .2s;display:flex;align-items:center;gap:5px}
+.d-btn:hover{border-color:var(--red);color:var(--red)}
+
+/* ADD SECTION */
+.add-sec{display:flex;flex-direction:column;align-items:center;gap:.65rem;padding:0 1.5rem 3.5rem;position:relative;z-index:1}
+.add-btn{display:flex;align-items:center;gap:9px;background:transparent;border:1px dashed rgba(201,168,76,.3);color:var(--gold);padding:.8rem 2.2rem;font-family:'Outfit',sans-serif;font-size:.78rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:all .22s}
+.add-btn:hover{background:var(--gold-dim);border-style:solid;border-color:rgba(201,168,76,.6)}
+.add-btn:disabled{opacity:.4;cursor:not-allowed}
+.add-hint{font-size:.68rem;color:var(--muted2);letter-spacing:.06em;text-align:center}
+
+/* TOAST */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(70px);background:var(--card);border:1px solid var(--border2);color:var(--text);padding:.6rem 1.3rem;border-radius:3px;font-size:.82rem;z-index:999;transition:transform .3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* SETUP SCREEN */
+#setupScreen{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;padding:1.5rem;flex-direction:column;gap:1.5rem}
+.setup-box{max-width:560px;width:100%;background:var(--card);border:1px solid var(--border2);border-radius:4px;padding:2rem 2rem 2rem}
+.setup-box h3{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400;margin-bottom:.5rem;color:var(--gold)}
+.setup-box p{color:var(--muted);font-size:.84rem;line-height:1.7;margin-bottom:1.2rem}
+.setup-box ol{color:var(--muted);font-size:.82rem;line-height:2;padding-left:1.2rem;margin-bottom:1.5rem}
+.setup-box li strong{color:var(--text)}
+.setup-box a{color:var(--gold2);text-decoration:underline}
+.step-in{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',monospace;font-size:.8rem;padding:.65rem .9rem;border-radius:3px;outline:none;margin-bottom:.75rem;transition:border-color .2s}
+.step-in:focus{border-color:var(--gold)}
+.step-in::placeholder{color:var(--muted2);opacity:.7}
+.cfg-btn{background:var(--gold);color:#0D0D0F;border:none;padding:.75rem 1.5rem;font-family:'Outfit',sans-serif;font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;border-radius:3px;cursor:pointer;transition:background .2s}
+.cfg-btn:hover{background:var(--gold2)}
+.cfg-note{font-size:.72rem;color:var(--muted2);text-align:center;margin-top:.75rem}
+
+@media(max-width:580px){
+  .tl-axis{left:16px}
+  .entry{display:block;padding-left:36px;position:relative}
+  .e-ctr{position:absolute;left:-3px;top:0;padding-top:1.3rem;width:22px}
+  .entry:nth-child(odd) .e-cw,.entry:nth-child(even) .e-cw{grid-column:unset;padding:0}
+  .hdr h1{font-size:2.2rem}
+  .ns-box{padding:2.2rem 1.6rem}
+}
+</style>
+</head>
+<body>
+
+<!-- NAME SCREEN -->
+<div id="nameScreen" style="display:none">
+  <div class="ns-glow"></div>
+  <div class="ns-grid"></div>
+  <div class="ns-box">
+    <div class="ns-sym">✦</div>
+    <h2>Línea del Tiempo</h2>
+    <p>Ingresá tu nombre o el de tu alumno. Solo vos podrás editar tu bloque, pero todos tus compañeros lo verán.</p>
+    <div class="ns-lbl">Tu nombre o alumno</div>
+    <input class="ns-in" id="nameIn" type="text" placeholder="Ej: Alumno 3 — Ana y Martín" maxlength="60" onkeydown="if(event.key==='Enter')startApp()"/>
+    <button class="ns-btn" id="nsBtn" onclick="startApp()">Entrar →</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-brand">Historia</div>
+    <div class="tb-mid">
+      <div class="tb-av" id="tbAv">G</div>
+      <div class="tb-nm" id="tbNm">Alumno</div>
+    </div>
+    <div class="tb-right">
+      <div id="connPill" class="live-pill"><span class="live-dot"></span>en vivo</div>
+      <button class="tb-change" onclick="changeName()">Cambiar</button>
+    </div>
+  </div>
+
+  <div class="hdr">
+    <div class="hdr-glow"></div>
+    <div class="hdr-sub"><span>Cronología Colaborativa</span></div>
+    <h1>Línea del Tiempo<br><em>Histórica</em></h1>
+    <p class="hdr-desc">Cada alumno sube su imagen y descripción — todos la ven en tiempo real</p>
+  </div>
+
+  <div class="count-bar" id="countBar">— cargando —</div>
+
+  <div class="tl-wrap">
+    <div class="tl-axis"></div>
+    <div id="tl"><div class="tl-load"><div class="spinner"></div>Conectando...</div></div>
+  </div>
+
+  <div class="add-sec">
+    <button class="add-btn" id="addBtn" onclick="addEntry()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Agregar mi hecho histórico
+    </button>
+    <p class="add-hint">Tu bloque quedará guardado y visible para todos tus compañeros al instante</p>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG & STATE
+// ═══════════════════════════════════════════════
+const ADMINS = ['Nikos', 'Luciana'];
+let DB_URL = '';
+let demoMode = false;
+let author = '', authorKey = '', entries = {};
+let unsubscribe = null;
+let suppressRender = false;
+
+const DEMO_KEY = 'tl_demo_data';
+const CONFIG_KEY = 'tl_firebase_url';
+
+// ═══════════════════════════════════════════════
+//  STARTUP
+// ═══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  DB_URL = 'https://lineadetiempohis-default-rtdb.firebaseio.com';
+  showNameScreen();
+});
+
+function saveConfig() {
+  const url = document.getElementById('fbUrl').value.trim().replace(/\/$/, '');
+  if (!url.includes('firebaseio.com') && !url.includes('firebase')) {
+    showToast('URL no válida. Debe terminar en .firebaseio.com');
+    document.getElementById('fbUrl').style.borderColor = 'var(--red)';
+    return;
+  }
+  DB_URL = url;
+  localStorage.setItem(CONFIG_KEY, url);
+  document.getElementById('setupScreen').style.display = 'none';
+  showNameScreen();
+}
+
+function useDemoMode() {
+  demoMode = true;
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('connPill').className = 'offline-pill';
+  document.getElementById('connPill').innerHTML = '⚡ modo demo';
+  showNameScreen();
+}
+
+function showNameScreen() {
+  document.getElementById('nameScreen').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════
+//  NAME / AUTH
+// ═══════════════════════════════════════════════
+function ini(n) { return n.split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('') || n[0]?.toUpperCase() || '?' }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function uid() { return '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7) }
+function makeKey(n) { return 'ak_' + btoa(unescape(encodeURIComponent(n))).replace(/[^a-zA-Z0-9]/g,'').slice(0,18) }
+
+function startApp() {
+  const v = document.getElementById('nameIn').value.trim();
+  if (!v) {
+    const i = document.getElementById('nameIn');
+    i.classList.add('err');
+    i.placeholder = 'Escribí tu nombre primero';
+    i.focus();
+    setTimeout(() => i.classList.remove('err'), 400);
+    return;
+  }
+  author = v;
+  authorKey = makeKey(v);
+  document.getElementById('tbAv').textContent = ini(v);
+  document.getElementById('tbNm').textContent = v.length > 22 ? v.slice(0,22)+'…' : v;
+  if (ADMINS.includes(v)) {
+    document.getElementById('tbNm').innerHTML += ' <span style="font-size:.58rem;padding:2px 6px;background:rgba(201,168,76,.18);color:var(--gold);border:1px solid rgba(201,168,76,.35);border-radius:100px;vertical-align:middle;letter-spacing:.06em">ADMIN</span>';
+  }
+  document.getElementById('nameScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  subscribeEntries();
+}
+
+function changeName() {
+  if (unsubscribe) unsubscribe();
+  document.getElementById('nameIn').value = author;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('nameScreen').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════
+//  FIREBASE REST (no SDK needed)
+// ═══════════════════════════════════════════════
+async function fbGet(path) {
+  const r = await fetch(`${DB_URL}/${path}.json`);
+  if (!r.ok) throw new Error('Firebase GET failed');
+  return r.json();
+}
+
+async function fbSet(path, data) {
+  const r = await fetch(`${DB_URL}/${path}.json`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('Firebase SET failed');
+  return r.json();
+}
+
+async function fbPatch(path, data) {
+  const r = await fetch(`${DB_URL}/${path}.json`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('Firebase PATCH failed');
+  return r.json();
+}
+
+async function fbDelete(path) {
+  await fetch(`${DB_URL}/${path}.json`, { method: 'DELETE' });
+}
+
+// ── SSE real-time listener (Firebase streaming) ──
+function subscribeEntries() {
+  if (demoMode) { loadDemo(); return; }
+
+  let es;
+  try {
+    es = new EventSource(`${DB_URL}/entries.json`);
+    es.addEventListener('put', e => {
+      const d = JSON.parse(e.data);
+      if (d.path === '/' && d.data) {
+        entries = d.data;
+      } else if (d.path === '/' && !d.data) {
+        entries = {};
+      } else {
+        const key = d.path.replace(/^\//, '');
+        if (d.data === null) delete entries[key];
+        else entries[key] = d.data;
+      }
+      renderAll();
+    });
+    es.addEventListener('patch', e => {
+      const d = JSON.parse(e.data);
+      Object.assign(entries, d.data || {});
+      renderAll();
+    });
+    es.onerror = () => {
+      document.getElementById('connPill').className = 'offline-pill';
+      document.getElementById('connPill').innerHTML = '⚠ reconectando';
+    };
+    es.onopen = () => {
+      document.getElementById('connPill').className = 'live-pill';
+      document.getElementById('connPill').innerHTML = '<span class="live-dot"></span>en vivo';
+    };
+    unsubscribe = () => es.close();
+  } catch(err) {
+    // Fallback: poll every 5s
+    loadFromFirebase();
+    const t = setInterval(loadFromFirebase, 5000);
+    unsubscribe = () => clearInterval(t);
+  }
+}
+
+async function loadFromFirebase() {
+  try {
+    const data = await fbGet('entries');
+    entries = data || {};
+    renderAll();
+  } catch(e) {
+    document.getElementById('tl').innerHTML = '<div class="tl-empty"><big>⚠</big>Error al conectar con Firebase.<br>Verificá la URL en la configuración.</div>';
+  }
+}
+
+// ── DEMO MODE (localStorage) ──
+function loadDemo() {
+  try { entries = JSON.parse(localStorage.getItem(DEMO_KEY) || '{}'); } catch(e) { entries = {}; }
+  renderAll();
+}
+function saveDemo() {
+  localStorage.setItem(DEMO_KEY, JSON.stringify(entries));
+}
+
+// ═══════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════
+function renderAll() {
+  if (suppressRender) return;
+  const tl = document.getElementById('tl');
+  const arr = Object.values(entries).sort((a,b) => a.order - b.order);
+  if (!arr.length) {
+    tl.innerHTML = '<div class="tl-empty"><big>✦</big>Todavía no hay hechos históricos.<br>¡Sé el primero en agregar uno!</div>';
+    updateCount(0, 0); return;
+  }
+  tl.innerHTML = '';
+  arr.forEach((e, i) => tl.appendChild(buildCard(e, i+1)));
+  updateCount(arr.length, arr.filter(e=>e.desc||e.imgB64).length);
+}
+
+function buildCard(e, num) {
+  const isMe = e.authorKey === authorKey;
+  const hasFill = e.imgB64 || e.desc;
+  const d = document.createElement('div');
+  d.className = 'entry' + (hasFill ? ' filled' : '');
+  d.dataset.eid = e.id;
+
+  const imgHover = isMe ? `<div class="iz-ov"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Cambiar imagen</div>` : '';
+  const fileIn = isMe ? `<input type="file" accept="image/*" onchange="handleImg(event,'${e.id}')" aria-label="Subir imagen"/>` : '';
+  const ph = !e.imgB64
+    ? `<div class="iz-ph"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="3" width="18" height="18" rx="1"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>${isMe ? 'Clic para subir imagen' : 'Sin imagen aún'}</span></div>` : '';
+
+  const badge = isMe
+    ? `<span class="badge-mine">✎ mi bloque</span>`
+    : `<span class="badge-lock">🔒 ${esc(e.author)}</span>`;
+
+  const canDelete = isMe || ADMINS.includes(author);
+  const saveRow = (isMe || canDelete) ? `
+    <div class="save-row">
+      ${canDelete ? `<button class="d-btn" onclick="deleteEntry('${e.id}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Eliminar
+      </button>` : ''}
+      ${isMe ? `<button class="s-btn" id="sb_${e.id}" onclick="saveEntry('${e.id}')">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+        Guardar
+      </button>` : ''}
+    </div>` : '';
+
+  const card = `<div class="card">
+    <div class="iz${isMe?' can-edit':''}" id="iz_${e.id}">
+      ${ph}
+      ${imgHover}
+      <img src="${esc(e.imgB64||'')}" class="${e.imgB64?'show':''}" alt="Imagen hecho ${num}"/>
+      ${fileIn}
+    </div>
+    <div class="cb">
+      <div class="cb-top">
+        <div class="a-pill">
+          <div class="a-av">${esc(ini(e.author))}</div>
+          <div class="a-nm">por <strong>${esc(e.author)}</strong></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${badge}
+          <input class="yr-in" id="yr_${e.id}" type="text" placeholder="Año…" maxlength="20"
+            value="${esc(e.year||'')}" ${isMe?`oninput="dirty('${e.id}')"` : 'disabled'} aria-label="Año"/>
+        </div>
+      </div>
+      <textarea class="desc-ta" id="dt_${e.id}" rows="3"
+        placeholder="Añadir una descripción del hecho histórico: ¿qué ocurrió? ¿cuándo? ¿por qué fue importante?"
+        ${isMe?`oninput="dirty('${e.id}')"` : 'disabled'} aria-label="Descripción">${esc(e.desc||'')}</textarea>
+      ${saveRow}
+    </div>
+  </div>`;
+
+  const odd = num % 2 !== 0;
+  d.innerHTML = `
+    ${odd ? `<div class="e-cw">${card}</div>` : '<div></div>'}
+    <div class="e-ctr"><div class="e-dot"></div><div class="e-num">${String(num).padStart(2,'0')}</div></div>
+    ${!odd ? `<div class="e-cw">${card}</div>` : '<div></div>'}
+  `;
+
+  if (e.imgB64) {
+    setTimeout(() => { const ph = d.querySelector('.iz-ph'); if(ph) ph.style.display='none'; }, 0);
+  }
+  return d;
+}
+
+function updateCount(total, filled) {
+  document.getElementById('countBar').innerHTML = total === 0
+    ? '— sin hechos todavía —'
+    : `— <strong>${filled}</strong> de ${total} hecho${total!==1?'s':''} con contenido · <strong>${total}</strong> alumno${total!==1?'s':''} participando —`;
+}
+
+// ═══════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════
+async function addEntry() {
+  const existing = Object.values(entries).find(e => e.authorKey === authorKey);
+  if (existing) {
+    showToast('Ya tenés un bloque. Editá el tuyo.');
+    document.querySelector(`[data-eid="${existing.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true;
+  const e = { id: uid(), author, authorKey, year: '', desc: '', imgB64: '', order: Date.now() };
+  if (demoMode) {
+    entries[e.id] = e; saveDemo(); renderAll();
+  } else {
+    try { await fbSet(`entries/${e.id}`, e); } catch(err) { showToast('Error al guardar. Verificá la conexión.'); btn.disabled=false; return; }
+  }
+  btn.disabled = false;
+  setTimeout(() => {
+    document.getElementById(`dt_${e.id}`)?.focus();
+    document.querySelector(`[data-eid="${e.id}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});
+  }, 200);
+}
+
+async function saveEntry(id) {
+  const btn = document.getElementById(`sb_${id}`);
+  if (btn) { btn.disabled=true; btn.textContent='Guardando…'; }
+  const year = document.getElementById(`yr_${id}`)?.value || '';
+  const desc = document.getElementById(`dt_${id}`)?.value || '';
+  const img = document.querySelector(`#iz_${id} img`);
+  const imgB64 = img && img.classList.contains('show') ? img.src : '';
+
+  const update = { year, desc, imgB64 };
+  if (demoMode) {
+    if (entries[id]) Object.assign(entries[id], update);
+    saveDemo(); renderAll();
+  } else {
+    try { await fbPatch(`entries/${id}`, update); } catch(err) { showToast('Error al guardar'); }
+  }
+  if (btn) { btn.disabled=false; btn.className='s-btn ok'; btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Guardado'; }
+  showToast('¡Guardado! Tus compañeros ya pueden verlo');
+}
+
+async function deleteEntry(id) {
+  if (!confirm('¿Eliminar tu bloque?')) return;
+  if (demoMode) {
+    delete entries[id]; saveDemo(); renderAll();
+  } else {
+    try { await fbDelete(`entries/${id}`); } catch(err) { showToast('Error al eliminar'); }
+  }
+  showToast('Bloque eliminado');
+}
+
+function handleImg(evt, id) {
+  const f = evt.target.files[0];
+  if (!f) return;
+  if (f.size > 3.5 * 1024 * 1024) { showToast('Imagen muy grande. Máximo 3.5 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const iz = document.getElementById('iz_'+id);
+    let img = iz.querySelector('img'); if(!img){img=document.createElement('img');iz.appendChild(img);}
+    img.src = ev.target.result; img.classList.add('show');
+    const ph = iz.querySelector('.iz-ph'); if(ph) ph.style.display='none';
+    dirty(id);
+    saveImgSilent(id, ev.target.result);
+  };
+  reader.readAsDataURL(f);
+}
+
+async function saveImgSilent(id, imgB64) {
+  // Suppress re-render for 3s so the local image stays visible
+  suppressRender = true;
+  setTimeout(() => { suppressRender = false; }, 3000);
+  if (demoMode) {
+    if (entries[id]) entries[id].imgB64 = imgB64;
+    saveDemo();
+  } else {
+    try {
+      await fbPatch('entries/' + id, { imgB64 });
+      // Update local cache so next render has the image
+      if (entries[id]) entries[id].imgB64 = imgB64;
+    } catch(e) {}
+  }
+  showToast('Imagen guardada');
+}
+
+function dirty(id) {
+  const btn = document.getElementById(`sb_${id}`);
+  if (btn) { btn.disabled=false; btn.className='s-btn'; btn.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Guardar'; }
+}
+
+let toastT;
+function showToast(m) {
+  const t = document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>
